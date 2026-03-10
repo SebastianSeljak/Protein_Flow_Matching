@@ -75,6 +75,10 @@ def parse_args():
                    help='Number of proteins to include in the output dataset')
     p.add_argument('--seed',         type=int, default=42,
                    help='Random seed for reproducible sampling')
+    p.add_argument('--sample-mode',  default='random', choices=['random', 'sequential'],
+                   help="'random' draws a random subset (default); "
+                        "'sequential' takes the first --n entries from the pool "
+                        "(exploits locality when similar structures are ordered together)")
 
     # ── ESM-2 (only needed when sourcing from --codes) ────────────────────────
     p.add_argument('--esm2-model',     default=_DEFAULT_ESM_MDL,
@@ -304,8 +308,12 @@ def main():
         _log(f'WARNING: requested {args.n} but only {len(pool)} available — using all.')
         args.n = len(pool)
 
-    sample = random.sample(pool, args.n)
-    _log(f'Sampled {len(sample)} proteins (seed={args.seed})')
+    if args.sample_mode == 'sequential':
+        sample = pool[:args.n]
+        _log(f'Selected first {len(sample)} proteins (sequential)')
+    else:
+        sample = random.sample(pool, args.n)
+        _log(f'Sampled {len(sample)} proteins (random, seed={args.seed})')
 
     # ── How many already written (resume) ─────────────────────────────────────
     already = sum(1 for p in sample if _already_in_h5(args.out, p))
