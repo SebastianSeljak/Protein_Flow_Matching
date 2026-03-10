@@ -12,5 +12,6 @@ cd /u/scratch/s/sseljak/ProteinFold/Protein_Flow_Matching
 
 python preprocessing/build_dataset.py \
     --codes protein_codes.txt \
-    --n 200 \
-    --out proteins.h5
+    --n 500 \
+    --sample-mode sequential
+    --h5 proteins_small.h5

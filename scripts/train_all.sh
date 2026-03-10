@@ -12,5 +12,5 @@ source /u/scratch/s/sseljak/ProteinFold/Protein_Flow_Matching/.venv/bin/activate
 cd /u/scratch/s/sseljak/ProteinFold/Protein_Flow_Matching
 
 python train_all.py \
-    --h5 proteins.h5 \
+    --h5 proteins_small.h5 \
     --device cuda
