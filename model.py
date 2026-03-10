@@ -47,12 +47,13 @@ class FoldingFlow(nn.Module):
             nn.Linear(256, 2) # velocity for phi and psi
         )
 
-    def forward(self, t, x_t, seq):
+    def forward(self, t, x_t, seq, embeddings=None):
         """
         Args:
             t: (B,) scalar time
             x_t: (B, L_torsion, 2) noisy phi/psi
             seq: (B, L_seq) amino acid indices
+            embeddings: (B, L_seq, d_esm) optional pre-computed embeddings
         Returns:
             v_t: (B, L_torsion, 2) predicted velocity
         """
@@ -60,7 +61,18 @@ class FoldingFlow(nn.Module):
         B, L_seq = seq.shape
         
         # 1. Sequence feature from Transformer
-        seq_emb = self.aa_embedding(seq) # (B, L_seq, embed_dim)
+        if embeddings is not None:
+            # If embeddings are provided (e.g. ESM-2 320-dim), use them
+            # We assume they are already projected or we project them here if needed
+            if embeddings.shape[-1] != self.aa_embedding.embedding_dim:
+                if not hasattr(self, 'embedding_projection'):
+                    self.embedding_projection = nn.Linear(embeddings.shape[-1], self.aa_embedding.embedding_dim).to(embeddings.device)
+                seq_emb = self.embedding_projection(embeddings)
+            else:
+                seq_emb = embeddings
+        else:
+            seq_emb = self.aa_embedding(seq) # (B, L_seq, embed_dim)
+            
         # Ensure positional encoding is large enough or sliced correctly
         seq_emb = seq_emb + self.pos_encoding[:, :L_seq, :]
         

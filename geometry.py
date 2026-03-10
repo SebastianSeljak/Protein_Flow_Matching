@@ -98,3 +98,45 @@ def torsion_to_cartesian(phi, psi, omega=None):
         coords[:, i] = torch.bmm(rot, p.unsqueeze(2)).squeeze(2) + coords[:, i-1]
         
     return coords
+
+def kabsch_alignment(P, Q):
+    """
+    Computes the optimal rotation matrix that minimizes the RMSD between two point sets P and Q.
+    Using Singular Value Decomposition (SVD).
+    
+    Args:
+        P: Tensor of shape (B, N, 3) - Predicted coordinates
+        Q: Tensor of shape (B, N, 3) - Target coordinates
+        
+    Returns:
+        rotated_P: P aligned to Q
+    """
+    # 1. Center the sets
+    P_centered = P - P.mean(dim=1, keepdim=True)
+    Q_centered = Q - Q.mean(dim=1, keepdim=True)
+    
+    # 2. Compute covariance matrix
+    # P_centered: (B, N, 3), Q_centered: (B, N, 3)
+    H = torch.bmm(P_centered.transpose(1, 2), Q_centered)
+    
+    # 3. SVD
+    # torch.svd is deprecated in newer versions, using torch.linalg.svd if available or torch.svd
+    try:
+        U, S, Vh = torch.linalg.svd(H)
+        V = Vh.transpose(-2, -1)
+    except AttributeError:
+        U, S, V = torch.svd(H)
+    
+    # 4. Correct rotation matrix to ensure a right-handed coordinate system
+    d = torch.det(torch.bmm(V, U.transpose(1, 2)))
+    # Create the middle matrix
+    diag = torch.ones((P.shape[0], 3), device=P.device)
+    diag[:, 2] = d
+    # R = V @ diag_embed(diag) @ U^T
+    R = torch.bmm(V, torch.bmm(torch.diag_embed(diag), U.transpose(1, 2)))
+    
+    # 5. Rotate P and shift back to Q's centroid
+    rotated_P = torch.bmm(P_centered, R.transpose(1, 2)) + Q.mean(dim=1, keepdim=True)
+    
+    return rotated_P
+
